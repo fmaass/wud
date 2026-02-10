@@ -70,6 +70,7 @@ const schema = joi.object({
         .default({ kind: 'unknown' }),
     resultChanged: joi.function(),
     labels: joi.object(),
+    upstreamUpdateAvailable: joi.boolean().default(false),
     upstream: joi
         .object({
             repo: joi.string().min(1).required(),
