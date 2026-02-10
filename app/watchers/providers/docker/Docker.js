@@ -21,6 +21,9 @@ const {
     wudDisplayIcon,
     wudTriggerInclude,
     wudTriggerExclude,
+    wudUpstreamRepo,
+    wudUpstreamVersion,
+    wudUpstreamPrerelease,
 } = require('./label');
 const storeContainer = require('../../../store/container');
 const log = require('../../../log');
@@ -652,6 +655,9 @@ class Docker extends Component {
                 container.Labels[wudDisplayIcon],
                 container.Labels[wudTriggerInclude],
                 container.Labels[wudTriggerExclude],
+                container.Labels[wudUpstreamRepo],
+                container.Labels[wudUpstreamVersion],
+                container.Labels[wudUpstreamPrerelease],
             ).catch((e) => {
                 this.log.warn(
                     `Failed to fetch image detail for container ${container.Id}: ${e.message}`,
@@ -784,6 +790,9 @@ class Docker extends Component {
         displayIcon,
         triggerInclude,
         triggerExclude,
+        upstreamRepo,
+        upstreamVersion,
+        upstreamPrerelease,
     ) {
         const containerId = container.Id;
 
@@ -795,6 +804,21 @@ class Docker extends Component {
         ) {
             this.ensureLogger();
             this.log.debug(`Container ${containerInStore.id} already in store`);
+            // Update upstream labels if they changed (labels may be updated without container recreation)
+            if (upstreamRepo && containerInStore.upstream) {
+                containerInStore.upstream.currentVersion = upstreamVersion || containerInStore.upstream.currentVersion;
+                containerInStore.upstream.prerelease = upstreamPrerelease === 'true';
+            } else if (upstreamRepo && !containerInStore.upstream) {
+                containerInStore.upstream = {
+                    repo: upstreamRepo,
+                    currentVersion: upstreamVersion || null,
+                    prerelease: upstreamPrerelease === 'true',
+                    latestVersion: null,
+                    latestUrl: null,
+                    checkedAt: null,
+                    error: null,
+                };
+            }
             return containerInStore;
         }
 
@@ -848,6 +872,19 @@ class Docker extends Component {
                 "Image is not a semver and digest watching is disabled so wud won't report any update. Please review the configuration to enable digest watching for this container or exclude this container from being watched",
             );
         }
+        // Build upstream object from labels (if repo label is set)
+        const upstream = upstreamRepo
+            ? {
+                  repo: upstreamRepo,
+                  currentVersion: upstreamVersion || null,
+                  prerelease: upstreamPrerelease === 'true',
+                  latestVersion: null,
+                  latestUrl: null,
+                  checkedAt: null,
+                  error: null,
+              }
+            : null;
+
         return normalizeContainer({
             id: containerId,
             name: containerName,
@@ -884,6 +921,7 @@ class Docker extends Component {
             result: {
                 tag: tagName,
             },
+            upstream,
         });
     }
 

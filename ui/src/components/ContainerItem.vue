@@ -59,6 +59,30 @@
               {{ container.image.tag.value }}
             </v-chip>
           </span>
+          <v-chip
+            v-if="container.upstream"
+            label
+            size="small"
+            variant="outlined"
+            :color="upstreamColor"
+            :href="upstreamRepoUrl"
+            target="_blank"
+            @click.stop
+          >
+            <v-icon start size="small">mdi-github</v-icon>
+            <template v-if="container.upstreamUpdateAvailable">
+              {{ container.upstream.latestVersion }} available
+            </template>
+            <template v-else-if="container.upstream.error">
+              check failed
+            </template>
+            <template v-else-if="container.upstream.latestVersion">
+              up to date
+            </template>
+            <template v-else>
+              checking...
+            </template>
+          </v-chip>
         </div>
         
         <v-spacer />
@@ -126,6 +150,10 @@
                 :margin-right="8"
               />
             </v-tab>
+            <v-tab v-if="container.upstream">
+              <span v-if="smAndUp">Upstream</span>
+              <v-icon>mdi-github</v-icon>
+            </v-tab>
             <v-tab v-if="container.error">
               <span v-if="smAndUp">Error</span>
               <v-icon>mdi-alert</v-icon>
@@ -149,6 +177,9 @@
             </v-window-item>
             <v-window-item>
               <container-detail :container="container" />
+            </v-window-item>
+            <v-window-item v-if="container.upstream">
+              <container-upstream :upstream="container.upstream" :upstream-update-available="container.upstreamUpdateAvailable" />
             </v-window-item>
             <v-window-item v-if="container.error">
               <container-error :error="container.error" />
@@ -233,6 +264,7 @@ import ContainerError from "@/components/ContainerError";
 import ContainerImage from "@/components/ContainerImage";
 import ContainerTriggers from "@/components/ContainerTriggers";
 import ContainerUpdate from "@/components/ContainerUpdate";
+import ContainerUpstream from "@/components/ContainerUpstream";
 import IconRenderer from "@/components/IconRenderer";
 
 export default {
@@ -246,6 +278,7 @@ export default {
     ContainerImage,
     ContainerTriggers,
     ContainerUpdate,
+    ContainerUpstream,
     IconRenderer,
   },
 
@@ -310,6 +343,19 @@ export default {
         newVersion = this.$filters.short(newVersion, 15);
       }
       return newVersion;
+    },
+
+    upstreamColor() {
+      if (!this.container.upstream) return "grey";
+      if (this.container.upstreamUpdateAvailable) return "purple";
+      if (this.container.upstream.error) return "warning";
+      if (this.container.upstream.latestVersion) return "success";
+      return "grey";
+    },
+
+    upstreamRepoUrl() {
+      if (!this.container.upstream) return "";
+      return `https://github.com/${this.container.upstream.repo}`;
     },
 
     newVersionClass() {

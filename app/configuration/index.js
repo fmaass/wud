@@ -178,6 +178,14 @@ function getPublicUrl(req) {
     return `${req.protocol}://${req.hostname}`;
 }
 
+/**
+ * Get upstream checker configuration.
+ * @returns {object}
+ */
+function getUpstreamConfiguration() {
+    return get('wud.upstream', wudEnvVars);
+}
+
 module.exports = {
     wudEnvVars,
     get,
@@ -191,5 +199,6 @@ module.exports = {
     getAuthenticationConfigurations,
     getServerConfiguration,
     getPrometheusConfiguration,
+    getUpstreamConfiguration,
     getPublicUrl,
 };

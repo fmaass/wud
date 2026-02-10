@@ -70,6 +70,18 @@ const schema = joi.object({
         .default({ kind: 'unknown' }),
     resultChanged: joi.function(),
     labels: joi.object(),
+    upstream: joi
+        .object({
+            repo: joi.string().min(1).required(),
+            currentVersion: joi.string().allow('', null).default(null),
+            latestVersion: joi.string().allow('', null).default(null),
+            latestUrl: joi.string().allow('', null).default(null),
+            checkedAt: joi.string().isoDate().allow(null).default(null),
+            error: joi.string().allow('', null).default(null),
+            prerelease: joi.boolean().default(false),
+        })
+        .allow(null)
+        .default(null),
 });
 
 /**
@@ -266,6 +278,34 @@ function addUpdateKindProperty(container) {
 }
 
 /**
+ * Normalize version string by stripping common prefixes (v, V).
+ * @param version
+ * @returns {string}
+ */
+function normalizeVersion(version) {
+    if (!version) return '';
+    return version.replace(/^[vV]/, '').trim();
+}
+
+/**
+ * Computed property for upstream update availability.
+ * @param container
+ */
+function addUpstreamUpdateAvailableProperty(container) {
+    Object.defineProperty(container, 'upstreamUpdateAvailable', {
+        enumerable: true,
+        get() {
+            if (!this.upstream || !this.upstream.latestVersion) return false;
+            if (!this.upstream.currentVersion) return false;
+            return (
+                normalizeVersion(this.upstream.currentVersion) !==
+                normalizeVersion(this.upstream.latestVersion)
+            );
+        },
+    });
+}
+
+/**
  * Computed function to check whether the result is different.
  * @param otherContainer
  * @returns {boolean}
@@ -308,6 +348,7 @@ function validate(container) {
     addUpdateAvailableProperty(containerValidated);
     addUpdateKindProperty(containerValidated);
     addLinkProperty(containerValidated);
+    addUpstreamUpdateAvailableProperty(containerValidated);
 
     // Add computed functions
     addResultChangedFunction(containerValidated);

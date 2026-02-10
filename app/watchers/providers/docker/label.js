@@ -51,4 +51,19 @@ module.exports = {
      * Optional list of triggers to exclude
      */
     wudTriggerExclude: 'wud.trigger.exclude',
+
+    /**
+     * Optional upstream GitHub repository (owner/repo format).
+     */
+    wudUpstreamRepo: 'wud.upstream.repo',
+
+    /**
+     * Optional version the fork is currently based on.
+     */
+    wudUpstreamVersion: 'wud.upstream.version',
+
+    /**
+     * Optional flag to include pre-releases (true | false).
+     */
+    wudUpstreamPrerelease: 'wud.upstream.prerelease',
 };

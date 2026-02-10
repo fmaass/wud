@@ -10,6 +10,10 @@ const WUD_CONTAINER_REMOVED = 'wud:container-removed';
 const WUD_CONTAINER_REPORT = 'wud:container-report';
 const WUD_CONTAINER_REPORTS = 'wud:container-reports';
 
+// Upstream related events
+const WUD_UPSTREAM_REPORT = 'wud:upstream-report';
+const WUD_UPSTREAM_REPORTS = 'wud:upstream-reports';
+
 // Watcher related events
 const WUD_WATCHER_START = 'wud:watcher-start';
 const WUD_WATCHER_STOP = 'wud:watcher-stop';
@@ -94,6 +98,38 @@ function registerContainerRemoved(handler) {
     eventEmitter.on(WUD_CONTAINER_REMOVED, handler);
 }
 
+/**
+ * Emit UpstreamReport event.
+ * @param upstreamReport
+ */
+function emitUpstreamReport(upstreamReport) {
+    eventEmitter.emit(WUD_UPSTREAM_REPORT, upstreamReport);
+}
+
+/**
+ * Register to UpstreamReport event.
+ * @param handler
+ */
+function registerUpstreamReport(handler) {
+    eventEmitter.on(WUD_UPSTREAM_REPORT, handler);
+}
+
+/**
+ * Emit UpstreamReports event.
+ * @param upstreamReports
+ */
+function emitUpstreamReports(upstreamReports) {
+    eventEmitter.emit(WUD_UPSTREAM_REPORTS, upstreamReports);
+}
+
+/**
+ * Register to UpstreamReports event.
+ * @param handler
+ */
+function registerUpstreamReports(handler) {
+    eventEmitter.on(WUD_UPSTREAM_REPORTS, handler);
+}
+
 function emitWatcherStart(watcher) {
     eventEmitter.emit(WUD_WATCHER_START, watcher);
 }
@@ -120,6 +156,10 @@ module.exports = {
     registerContainerUpdated,
     emitContainerRemoved,
     registerContainerRemoved,
+    emitUpstreamReport,
+    registerUpstreamReport,
+    emitUpstreamReports,
+    registerUpstreamReports,
     emitWatcherStart,
     registerWatcherStart,
     emitWatcherStop,
