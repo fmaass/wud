@@ -366,6 +366,12 @@ function flatten(container) {
         transformKey: (key) => snakeCase(key),
     });
     delete containerFlatten.result_changed;
+
+    // Remove upstream fields from flattened output (not needed in Prometheus metrics)
+    Object.keys(containerFlatten)
+        .filter((key) => key.startsWith('upstream'))
+        .forEach((key) => delete containerFlatten[key]);
+
     return containerFlatten;
 }
 
