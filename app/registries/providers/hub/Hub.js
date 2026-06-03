@@ -6,6 +6,9 @@ const Custom = require('../custom/Custom');
  */
 class Hub extends Custom {
     init() {
+        if (typeof this.configuration === 'string') {
+            this.configuration = {};
+        }
         this.configuration.url = 'https://registry-1.docker.io';
         if (this.configuration.token) {
             this.configuration.password = this.configuration.token;

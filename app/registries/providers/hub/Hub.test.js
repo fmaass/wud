@@ -122,6 +122,12 @@ describe('Docker Hub Registry', () => {
         expect(result.headers.Authorization).toBe('Bearer public-token');
     });
 
+    test('should handle string configuration without crashing', async () => {
+        const hubWithString = new Hub();
+        await hubWithString.register('registry', 'hub', 'test', 'dckr_pat_example');
+        expect(hubWithString.configuration.url).toBe('https://registry-1.docker.io');
+    });
+
     test('should validate string configuration', () => {
         expect(() => hub.validateConfiguration('')).not.toThrow();
         expect(() => hub.validateConfiguration('some-string')).not.toThrow();
