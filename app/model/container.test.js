@@ -298,7 +298,6 @@ test('flatten should be flatten the nested properties with underscores when call
     expect(flattened).toEqual({
         id: 'container-123456789',
         status: 'unknown',
-        type: 'vanilla',
         image_architecture: 'arch',
         image_created: '2021-06-12T05:33:38.440Z',
         image_digest_watch: false,
@@ -325,7 +324,7 @@ test('flatten should be flatten the nested properties with underscores when call
         update_kind_semver_diff: 'major',
         watcher: 'test',
     });
-    expect(flattened.type).toBe('vanilla');
+    expect(flattened.type).toBeUndefined();
     expect(flattened.release_repo).toBeUndefined();
 });
 
@@ -564,7 +563,7 @@ test('type should default to vanilla when absent', () => {
     expect(containerValidated.type).toBe('vanilla');
 });
 
-test('flatten should strip release notes but keep type', () => {
+test('flatten should strip release notes and type', () => {
     const containerValidated = container.validate({
         id: 'container-flatten-rn',
         name: 'test',
@@ -590,7 +589,7 @@ test('flatten should strip release notes but keep type', () => {
         },
     });
     const flattened = container.flatten(containerValidated);
-    expect(flattened.type).toBe('fork');
+    expect(flattened.type).toBeUndefined();
     expect(flattened.result_release_notes).toBeUndefined();
     expect(flattened.result_release_notes_exact).toBeUndefined();
     expect(flattened.upstream_release_notes).toBeUndefined();

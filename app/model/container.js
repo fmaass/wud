@@ -380,12 +380,13 @@ function flatten(container) {
         .filter((key) => key.startsWith('upstream'))
         .forEach((key) => delete containerFlatten[key]);
 
-    // Remove release notes, release repo, and published_at (high-cardinality/large text, not useful as metrics labels)
+    // Remove fields not in the Prometheus initial labelset
     Object.keys(containerFlatten)
         .filter((key) =>
             key.includes('release_notes') ||
             key.includes('release_repo') ||
-            key.includes('published_at'),
+            key.includes('published_at') ||
+            key === 'type',
         )
         .forEach((key) => delete containerFlatten[key]);
 
