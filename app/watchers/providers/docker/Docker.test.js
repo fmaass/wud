@@ -1095,6 +1095,100 @@ describe('Docker Watcher', () => {
             // Ensure no registry lookup happened
             expect(registry.getState).not.toHaveBeenCalled();
         });
+
+        test('should classify bare Docker Hub image as hub, not local', async () => {
+            await docker.register('watcher', 'docker', 'test', {});
+
+            const mockLogWarn = jest.fn();
+            docker.log = {
+                warn: mockLogWarn,
+                debug: jest.fn(),
+                info: jest.fn(),
+                child: jest.fn().mockReturnValue({
+                    warn: mockLogWarn,
+                    debug: jest.fn(),
+                    info: jest.fn(),
+                }),
+            };
+
+            const container = {
+                Id: '456',
+                Image: 'grafana/grafana:12.4.4',
+                Names: ['/grafana'],
+                State: 'running',
+                Labels: {},
+            };
+            const imageDetails = {
+                Id: 'image456',
+                Architecture: 'amd64',
+                Os: 'linux',
+                Created: '2024-01-01T00:00:00.000Z',
+                RepoDigests: ['grafana/grafana@sha256:abcdef1234567890'],
+            };
+            mockImage.inspect.mockResolvedValue(imageDetails);
+            mockTag.parse.mockReturnValue({ major: 12, minor: 4, patch: 4 });
+
+            mockParse.mockReturnValue({
+                domain: '',
+                path: 'grafana/grafana',
+                tag: '12.4.4',
+            });
+
+            const mockRegistry = {
+                normalizeImage: jest.fn((img) => img),
+                getId: () => 'hub',
+                match: () => true,
+            };
+            registry.getState.mockReturnValue({
+                registry: { hub: mockRegistry },
+            });
+
+            const { validate: validateContainer } = require('../../../model/container');
+            const validatedResult = {
+                id: '456',
+                name: 'grafana',
+                image: {
+                    registry: { name: 'hub', url: '' },
+                    name: 'grafana/grafana',
+                    tag: { value: '12.4.4', semver: true },
+                    architecture: 'amd64',
+                },
+            };
+            validateContainer.mockReturnValue(validatedResult);
+
+            const result = await docker.addImageDetailsToContainer(container);
+
+            expect(result).toBeDefined();
+            expect(result.image.registry.name).toBe('hub');
+            expect(result.image.registry.name).not.toBe('local');
+            expect(mockLogWarn).not.toHaveBeenCalled();
+        });
+
+        test('should not skip findNewVersion for bare Docker Hub image', async () => {
+            const container = {
+                image: {
+                    registry: { name: 'hub', url: '' },
+                    name: 'grafana/grafana',
+                    tag: { value: '12.4.4', semver: true },
+                    digest: { watch: false },
+                },
+            };
+            const mockLogChild = { debug: jest.fn(), error: jest.fn(), warn: jest.fn() };
+
+            const mockRegistryProvider = {
+                getTags: jest.fn().mockResolvedValue([]),
+            };
+            registry.getState.mockReturnValue({
+                registry: { hub: mockRegistryProvider },
+            });
+
+            const result = await docker.findNewVersion(container, mockLogChild);
+
+            expect(mockLogChild.debug).not.toHaveBeenCalledWith(
+                expect.stringContaining('Local image'),
+            );
+            expect(result).toBeDefined();
+        });
     });
 
     describe('Utility Functions', () => {

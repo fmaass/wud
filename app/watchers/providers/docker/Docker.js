@@ -909,7 +909,7 @@ class Docker extends Component {
               }
             : null;
 
-        const isLocalImage = !parsedImage.domain;
+        const isLocalImage = !parsedImage.domain && !repoDigest;
         const registryUrl = isLocalImage ? 'local' : parsedImage.domain;
         const registryName = isLocalImage ? 'local' : undefined;
 
