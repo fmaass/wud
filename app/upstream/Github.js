@@ -56,7 +56,6 @@ class Github {
     async getLatestRelease(owner, repo, includePrerelease = false) {
         try {
             if (includePrerelease) {
-                // Fetch all releases and find the first one (latest)
                 const response = await axios({
                     url: `${GITHUB_API_BASE}/repos/${owner}/${repo}/releases`,
                     method: 'get',
@@ -70,12 +69,13 @@ class Github {
                     return {
                         tag: releases[0].tag_name,
                         url: releases[0].html_url,
+                        body: releases[0].body || '',
+                        publishedAt: releases[0].published_at || null,
                     };
                 }
                 return null;
             }
 
-            // Standard: get only the latest non-prerelease
             const response = await axios({
                 url: `${GITHUB_API_BASE}/repos/${owner}/${repo}/releases/latest`,
                 method: 'get',
@@ -86,6 +86,8 @@ class Github {
             return {
                 tag: response.data.tag_name,
                 url: response.data.html_url,
+                body: response.data.body || '',
+                publishedAt: response.data.published_at || null,
             };
         } catch (error) {
             // 404 means no releases exist -- fall back to tags
@@ -141,6 +143,39 @@ class Github {
             throw new Error(
                 `Failed to fetch tags for ${owner}/${repo}: ${error.message}`,
             );
+        }
+    }
+
+    /**
+     * Get a specific release by tag name.
+     * @param {string} owner
+     * @param {string} repo
+     * @param {string} tag
+     * @returns {Promise<{tag: string, url: string, body: string, publishedAt: string}|null>}
+     */
+    async getReleaseByTag(owner, repo, tag) {
+        try {
+            const response = await axios({
+                url: `${GITHUB_API_BASE}/repos/${owner}/${repo}/releases/tags/${tag}`,
+                method: 'get',
+                headers: this.getHeaders(),
+                timeout: REQUEST_TIMEOUT,
+            });
+            this.trackRateLimit(response.headers);
+            return {
+                tag: response.data.tag_name,
+                url: response.data.html_url,
+                body: response.data.body || '',
+                publishedAt: response.data.published_at || null,
+            };
+        } catch (error) {
+            if (error.response && error.response.status === 404) {
+                return null;
+            }
+            if (error.response && error.response.status === 403) {
+                throw new Error('GitHub API rate limited');
+            }
+            throw error;
         }
     }
 

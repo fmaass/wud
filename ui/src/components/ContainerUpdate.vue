@@ -76,6 +76,32 @@
           {{ updateKindFormatted }}
         </v-list-item-subtitle>
       </v-list-item>
+      <v-list-item v-if="result.releaseNotes">
+        <template v-slot:prepend>
+          <v-icon color="purple">mdi-note-text</v-icon>
+        </template>
+        <v-list-item-title>
+          Release Notes
+          <v-chip
+            v-if="result.releaseNotesExact === false"
+            size="x-small"
+            color="warning"
+            variant="outlined"
+          >
+            link only
+          </v-chip>
+        </v-list-item-title>
+        <v-list-item-subtitle>
+          <a
+            v-if="result.releaseNotesExact === false"
+            :href="result.releaseNotes"
+            target="_blank"
+          >
+            {{ result.releaseNotes }}
+          </a>
+          <pre v-else class="release-notes-body">{{ result.releaseNotes }}</pre>
+        </v-list-item-subtitle>
+      </v-list-item>
     </v-list>
     <v-card-text v-else>No update available</v-card-text>
   </div>
@@ -117,3 +143,14 @@ export default {
   },
 };
 </script>
+
+<style scoped>
+.release-notes-body {
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  font-size: 0.85em;
+  max-height: 300px;
+  overflow-y: auto;
+  margin-top: 4px;
+}
+</style>

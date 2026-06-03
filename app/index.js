@@ -3,6 +3,7 @@ const log = require('./log');
 const store = require('./store');
 const registry = require('./registry');
 const upstream = require('./upstream');
+const releasenotes = require('./releasenotes');
 const api = require('./api');
 const prometheus = require('./prometheus');
 
@@ -20,6 +21,9 @@ async function main() {
 
     // Init upstream checker (checks GitHub for upstream repo updates)
     await upstream.init();
+
+    // Init release notes resolver (fetches release notes for vanilla containers)
+    await releasenotes.init();
 
     // Init api
     await api.init();

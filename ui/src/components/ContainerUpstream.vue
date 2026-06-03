@@ -67,6 +67,15 @@
       <v-list-item-title>Pre-releases</v-list-item-title>
       <v-list-item-subtitle>Included</v-list-item-subtitle>
     </v-list-item>
+    <v-list-item v-if="upstream.releaseNotes">
+      <template v-slot:prepend>
+        <v-icon color="purple">mdi-note-text</v-icon>
+      </template>
+      <v-list-item-title>Release Notes</v-list-item-title>
+      <v-list-item-subtitle>
+        <pre class="release-notes-body">{{ upstream.releaseNotes }}</pre>
+      </v-list-item-subtitle>
+    </v-list-item>
   </v-list>
 </template>
 
@@ -96,3 +105,14 @@ export default {
   },
 };
 </script>
+
+<style scoped>
+.release-notes-body {
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  font-size: 0.85em;
+  max-height: 300px;
+  overflow-y: auto;
+  margin-top: 4px;
+}
+</style>

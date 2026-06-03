@@ -60,6 +60,15 @@
             </v-chip>
           </span>
           <v-chip
+            v-if="container.type && container.type !== 'vanilla'"
+            label
+            size="x-small"
+            :color="container.type === 'fork' ? 'info' : 'warning'"
+            variant="flat"
+          >
+            {{ container.type }}
+          </v-chip>
+          <v-chip
             v-if="container.upstream"
             label
             size="small"

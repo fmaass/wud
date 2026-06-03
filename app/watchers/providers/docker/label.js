@@ -66,4 +66,14 @@ module.exports = {
      * Optional flag to include pre-releases (true | false).
      */
     wudUpstreamPrerelease: 'wud.upstream.prerelease',
+
+    /**
+     * Container type classification (vanilla | fork | patched).
+     */
+    wudType: 'wud.type',
+
+    /**
+     * GitHub repository for vanilla release notes (owner/repo format).
+     */
+    wudReleaseRepo: 'wud.release.repo',
 };

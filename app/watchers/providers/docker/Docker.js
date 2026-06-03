@@ -24,6 +24,8 @@ const {
     wudUpstreamRepo,
     wudUpstreamVersion,
     wudUpstreamPrerelease,
+    wudType,
+    wudReleaseRepo,
 } = require('./label');
 const storeContainer = require('../../../store/container');
 const log = require('../../../log');
@@ -170,6 +172,11 @@ function getTagCandidates(container, tags, logContainer) {
 
 function normalizeContainer(container) {
     const containerWithNormalizedImage = container;
+
+    if (container.image.registry.name === 'local') {
+        return validateContainer(containerWithNormalizedImage);
+    }
+
     const registryProvider = Object.values(getRegistries()).find((provider) =>
         provider.match(container.image),
     );
@@ -573,15 +580,24 @@ class Docker extends Component {
         }
         try {
             const containerReports = await Promise.all(
-                containers.map((container) => this.watchContainer(container)),
+                containers.map(async (container) => {
+                    try {
+                        return await this.watchContainer(container);
+                    } catch (e) {
+                        const name = container.name || container.id || 'unknown';
+                        this.log.warn(
+                            `Error when processing container ${name} (${e.message})`,
+                        );
+                        if (this.log.debug) {
+                            this.log.debug(e);
+                        }
+                        return null;
+                    }
+                }),
             );
-            event.emitContainerReports(containerReports);
-            return containerReports;
-        } catch (e) {
-            this.log.warn(
-                `Error when processing some containers (${e.message})`,
-            );
-            return [];
+            const validReports = containerReports.filter((r) => r !== null);
+            event.emitContainerReports(validReports);
+            return validReports;
         } finally {
             // Dispatch event to notify stop watching
             event.emitWatcherStop(this);
@@ -658,6 +674,8 @@ class Docker extends Component {
                 container.Labels[wudUpstreamRepo],
                 container.Labels[wudUpstreamVersion],
                 container.Labels[wudUpstreamPrerelease],
+                container.Labels[wudType],
+                container.Labels[wudReleaseRepo],
             ).catch((e) => {
                 this.log.warn(
                     `Failed to fetch image detail for container ${container.Id}: ${e.message}`,
@@ -701,6 +719,10 @@ class Docker extends Component {
      */
 
     async findNewVersion(container, logContainer) {
+        if (container.image.registry.name === 'local') {
+            logContainer.debug('Local image — skipping remote version check');
+            return { tag: container.image.tag.value };
+        }
         const registryProvider = getRegistry(container.image.registry.name);
         const result = { tag: container.image.tag.value };
         if (!registryProvider) {
@@ -793,6 +815,8 @@ class Docker extends Component {
         upstreamRepo,
         upstreamVersion,
         upstreamPrerelease,
+        containerType,
+        releaseRepo,
     ) {
         const containerId = container.Id;
 
@@ -885,6 +909,10 @@ class Docker extends Component {
               }
             : null;
 
+        const isLocalImage = !parsedImage.domain;
+        const registryUrl = isLocalImage ? 'local' : parsedImage.domain;
+        const registryName = isLocalImage ? 'local' : undefined;
+
         return normalizeContainer({
             id: containerId,
             name: containerName,
@@ -901,7 +929,8 @@ class Docker extends Component {
             image: {
                 id: imageId,
                 registry: {
-                    url: parsedImage.domain,
+                    url: registryUrl,
+                    ...(registryName && { name: registryName }),
                 },
                 name: parsedImage.path,
                 tag: {
@@ -921,6 +950,8 @@ class Docker extends Component {
             result: {
                 tag: tagName,
             },
+            type: containerType || undefined,
+            releaseRepo: releaseRepo || undefined,
             upstream,
         });
     }

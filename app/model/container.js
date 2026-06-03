@@ -53,10 +53,15 @@ const schema = joi.object({
         digest: joi.string(),
         created: joi.string().isoDate(),
         link: joi.string(),
+        releaseNotes: joi.string().allow('', null).default(null),
+        releaseNotesExact: joi.boolean().default(false),
+        publishedAt: joi.string().allow('', null).default(null),
     }),
     error: joi.object({
         message: joi.string().min(1).required(),
     }),
+    type: joi.string().valid('vanilla', 'fork', 'patched').default('vanilla'),
+    releaseRepo: joi.string().allow('', null).default(null),
     updateAvailable: joi.boolean().default(false),
     updateKind: joi
         .object({
@@ -77,6 +82,8 @@ const schema = joi.object({
             currentVersion: joi.string().allow('', null).default(null),
             latestVersion: joi.string().allow('', null).default(null),
             latestUrl: joi.string().allow('', null).default(null),
+            releaseNotes: joi.string().allow('', null).default(null),
+            publishedAt: joi.string().allow('', null).default(null),
             checkedAt: joi.string().isoDate().allow(null).default(null),
             error: joi.string().allow('', null).default(null),
             prerelease: joi.boolean().default(false),
@@ -371,6 +378,15 @@ function flatten(container) {
     // Remove upstream fields from flattened output (not needed in Prometheus metrics)
     Object.keys(containerFlatten)
         .filter((key) => key.startsWith('upstream'))
+        .forEach((key) => delete containerFlatten[key]);
+
+    // Remove release notes, release repo, and published_at (high-cardinality/large text, not useful as metrics labels)
+    Object.keys(containerFlatten)
+        .filter((key) =>
+            key.includes('release_notes') ||
+            key.includes('release_repo') ||
+            key.includes('published_at'),
+        )
         .forEach((key) => delete containerFlatten[key]);
 
     return containerFlatten;

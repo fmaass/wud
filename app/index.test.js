@@ -1,17 +1,31 @@
-// Mock all dependencies
 jest.mock('./configuration', () => ({
     getVersion: jest.fn(() => '1.0.0'),
 }));
 
-jest.mock('./log', () => ({
-    info: jest.fn(),
-}));
+jest.mock('./log', () => {
+    const mock = {
+        info: jest.fn(),
+        warn: jest.fn(),
+        debug: jest.fn(),
+        error: jest.fn(),
+    };
+    mock.child = jest.fn(() => mock);
+    return mock;
+});
 
 jest.mock('./store', () => ({
     init: jest.fn().mockResolvedValue(),
 }));
 
 jest.mock('./registry', () => ({
+    init: jest.fn().mockResolvedValue(),
+}));
+
+jest.mock('./upstream', () => ({
+    init: jest.fn().mockResolvedValue(),
+}));
+
+jest.mock('./releasenotes', () => ({
     init: jest.fn().mockResolvedValue(),
 }));
 
@@ -26,7 +40,6 @@ jest.mock('./prometheus', () => ({
 describe('Main Application', () => {
     beforeEach(() => {
         jest.clearAllMocks();
-        // Clear the module cache to ensure fresh imports
         jest.resetModules();
     });
 
@@ -34,17 +47,16 @@ describe('Main Application', () => {
         const log = require('./log');
         const store = require('./store');
         const registry = require('./registry');
+        const upstream = require('./upstream');
+        const releasenotes = require('./releasenotes');
         const api = require('./api');
         const prometheus = require('./prometheus');
         const { getVersion } = require('./configuration');
 
-        // Import and run the main module
         require('./index');
 
-        // Wait for async operations to complete
         await new Promise((resolve) => setImmediate(resolve));
 
-        // Verify initialization order and calls
         expect(getVersion).toHaveBeenCalled();
         expect(log.info).toHaveBeenCalledWith(
             'WUD is starting (version = 1.0.0)',
@@ -52,6 +64,8 @@ describe('Main Application', () => {
         expect(store.init).toHaveBeenCalled();
         expect(prometheus.init).toHaveBeenCalled();
         expect(registry.init).toHaveBeenCalled();
+        expect(upstream.init).toHaveBeenCalled();
+        expect(releasenotes.init).toHaveBeenCalled();
         expect(api.init).toHaveBeenCalled();
     });
 });

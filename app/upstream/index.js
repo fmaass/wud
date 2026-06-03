@@ -67,6 +67,8 @@ async function checkContainer(container) {
         const previousVersion = upstream.latestVersion;
         upstream.latestVersion = result.tag;
         upstream.latestUrl = result.url;
+        upstream.releaseNotes = result.body || null;
+        upstream.publishedAt = result.publishedAt || null;
         upstream.checkedAt = new Date().toISOString();
         upstream.error = null;
 

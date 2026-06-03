@@ -438,12 +438,12 @@ describe('Docker Watcher', () => {
             );
         });
 
-        test('should handle error processing containers', async () => {
-            const mockLog = { warn: jest.fn() };
+        test('should handle error processing containers and continue batch', async () => {
+            const mockLog = { warn: jest.fn(), debug: jest.fn() };
             docker.log = mockLog;
             docker.getContainers = jest
                 .fn()
-                .mockResolvedValue([{ id: 'test' }]);
+                .mockResolvedValue([{ id: 'test', name: 'failing' }]);
             docker.watchContainer = jest
                 .fn()
                 .mockRejectedValue(new Error('Processing failed'));
@@ -957,6 +957,143 @@ describe('Docker Watcher', () => {
             const result = docker.mapContainerToContainerReport(container);
 
             expect(result.changed).toBe(false);
+        });
+    });
+
+    describe('Batch Resilience (Bug A)', () => {
+        test('should isolate single container failure and process the rest', async () => {
+            const goodContainer = { id: 'good', name: 'good-container' };
+            const badContainer = { id: 'bad', name: 'bad-container' };
+            const mockLog = { warn: jest.fn(), debug: jest.fn() };
+            docker.log = mockLog;
+
+            docker.getContainers = jest
+                .fn()
+                .mockResolvedValue([badContainer, goodContainer]);
+
+            let callCount = 0;
+            docker.watchContainer = jest.fn().mockImplementation((c) => {
+                callCount++;
+                if (c.id === 'bad') {
+                    return Promise.reject(new Error('Simulated failure'));
+                }
+                return Promise.resolve({
+                    container: { ...c, updateAvailable: false },
+                    changed: false,
+                });
+            });
+
+            const result = await docker.watch();
+
+            expect(callCount).toBe(2);
+            expect(result).toHaveLength(1);
+            expect(result[0].container.id).toBe('good');
+            expect(mockLog.warn).toHaveBeenCalledWith(
+                expect.stringContaining('bad-container'),
+            );
+        });
+    });
+
+    describe('Local Image Handling (Bug B)', () => {
+        test('should retain local image with synthetic local registry', async () => {
+            await docker.register('watcher', 'docker', 'test', {});
+
+            // Spy on log.warn to prove the clean path (F4: Bug A catch must NOT mask Bug B)
+            const mockLogWarn = jest.fn();
+            docker.log = {
+                warn: mockLogWarn,
+                debug: jest.fn(),
+                info: jest.fn(),
+                child: jest.fn().mockReturnValue({
+                    warn: mockLogWarn,
+                    debug: jest.fn(),
+                    info: jest.fn(),
+                }),
+            };
+
+            const container = {
+                Id: '123',
+                Image: 'wud-custom:8.1.1-fms.1',
+                Names: ['/wud'],
+                State: 'running',
+                Labels: {
+                    'wud.upstream.repo': 'getwud/wud',
+                    'wud.upstream.version': '8.1.1',
+                },
+            };
+            const imageDetails = {
+                Id: 'image123',
+                Architecture: 'amd64',
+                Os: 'linux',
+                Created: '2023-01-01T00:00:00.000Z',
+                RepoDigests: [],
+            };
+            mockImage.inspect.mockResolvedValue(imageDetails);
+            mockTag.parse.mockReturnValue({ major: 8, minor: 1, patch: 1 });
+
+            // parsedImage returns empty domain for local images
+            mockParse.mockReturnValue({
+                domain: '',
+                path: 'wud-custom',
+                tag: '8.1.1-fms.1',
+            });
+
+            const { validate: validateContainer } = require('../../../model/container');
+            const validatedResult = {
+                id: '123',
+                name: 'wud',
+                image: {
+                    registry: { name: 'local', url: 'local' },
+                    name: 'wud-custom',
+                    tag: { value: '8.1.1-fms.1', semver: true },
+                    architecture: 'amd64',
+                },
+                upstream: {
+                    repo: 'getwud/wud',
+                    currentVersion: '8.1.1',
+                    prerelease: false,
+                    latestVersion: null,
+                    latestUrl: null,
+                    checkedAt: null,
+                    error: null,
+                },
+            };
+            validateContainer.mockReturnValue(validatedResult);
+
+            const result = await docker.addImageDetailsToContainer(
+                container,
+                undefined, undefined, undefined, undefined, undefined, undefined,
+                undefined, undefined,
+                'getwud/wud', '8.1.1', undefined,
+            );
+
+            expect(result).toBeDefined();
+            expect(result.image.registry.name).toBe('local');
+            expect(result.image.registry.url).toBe('local');
+            expect(validateContainer).toHaveBeenCalled();
+            // F4: Assert the clean path — no warn log fired, proving Bug A
+            // catch is NOT masking a Bug B failure for the local image
+            expect(mockLogWarn).not.toHaveBeenCalled();
+        });
+
+        test('should skip remote version check for local images', async () => {
+            const container = {
+                image: {
+                    registry: { name: 'local', url: 'local' },
+                    tag: { value: '1.0.0' },
+                    digest: { watch: false },
+                },
+            };
+            const mockLogChild = { debug: jest.fn() };
+
+            const result = await docker.findNewVersion(container, mockLogChild);
+
+            expect(result).toEqual({ tag: '1.0.0' });
+            expect(mockLogChild.debug).toHaveBeenCalledWith(
+                expect.stringContaining('Local image'),
+            );
+            // Ensure no registry lookup happened
+            expect(registry.getState).not.toHaveBeenCalled();
         });
     });
 
