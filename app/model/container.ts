@@ -63,6 +63,20 @@ export interface Container {
     updateKind: ContainerUpdateKind;
     labels?: Record<string, string>;
     resultChanged?: (otherContainer: Container | undefined) => boolean;
+    type?: string;
+    releaseRepo?: string;
+    upstream?: ContainerUpstream;
+    upstreamUpdateAvailable?: boolean;
+}
+
+export interface ContainerUpstream {
+    repo: string;
+    currentVersion?: string | null;
+    prerelease?: boolean;
+    latestVersion?: string | null;
+    latestUrl?: string | null;
+    checkedAt?: string | null;
+    error?: string | null;
 }
 
 // Container data schema
