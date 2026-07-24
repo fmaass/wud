@@ -1,5 +1,6 @@
 const axios = require('axios');
-const log = require('../log').child({ component: 'upstream.github' });
+const logModule = require('../log');
+const log = (logModule.default || logModule).child({ component: 'upstream.github' });
 
 const GITHUB_API_BASE = 'https://api.github.com';
 const REQUEST_TIMEOUT = 10000;

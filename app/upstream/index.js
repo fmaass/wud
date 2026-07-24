@@ -4,7 +4,8 @@
  * that containers are forked from.
  */
 const cron = require('node-cron');
-const log = require('../log').child({ component: 'upstream' });
+const logModule = require('../log');
+const log = (logModule.default || logModule).child({ component: 'upstream' });
 const storeContainer = require('../store/container');
 const event = require('../event');
 const Github = require('./Github');

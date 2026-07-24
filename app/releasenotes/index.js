@@ -1,4 +1,5 @@
-const log = require('../log').child({ component: 'releasenotes' });
+const logModule = require('../log');
+const log = (logModule.default || logModule).child({ component: 'releasenotes' });
 const storeContainer = require('../store/container');
 const event = require('../event');
 const Github = require('../upstream/Github');
