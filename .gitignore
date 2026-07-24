@@ -101,3 +101,6 @@ typings/
 
 # Ignore OSX crap-files
 *.DS_Store
+
+# Session reviews (transient working artifacts)
+docs/session-reviews/
