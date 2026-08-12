@@ -75,7 +75,9 @@ export default defineComponent({
             : true,
         )
         .filter((container) =>
-          this.updateAvailableSelected ? container.updateAvailable : true,
+          this.updateAvailableSelected
+            ? container.updateAvailable || container.upstreamUpdateAvailable
+            : true,
         )
         .sort((a, b) => {
           const getImageDate = (item: any) => new Date(item.image.created);

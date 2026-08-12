@@ -40,7 +40,8 @@ export default defineComponent({
         vm.watchersCount = watchers.length;
         vm.registriesCount = registries.length;
         vm.containersToUpdateCount = containers.filter(
-          (container: any) => container.updateAvailable,
+          (container: any) =>
+            container.updateAvailable || container.upstreamUpdateAvailable,
         ).length;
       });
     } catch (e) {
