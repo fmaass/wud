@@ -1,0 +1,236 @@
+{
+    "x-wud-provenance": {
+        "description": "Trimmed excerpt of the windshift REST API v1 OpenAPI document, vendored so the windshift trigger contract test runs offline. Only the operations and schema fields this trigger uses are kept; nothing is rewritten.",
+        "source": "windshift-core api/openapi.json",
+        "source_sha256": "5b62a716fd6575fee04ab3d4088494d7e29f07a45b7e5e49037579f74669ce32",
+        "spec_info_version": "1",
+        "extracted_at": "2026-09-09T22:43:21Z"
+    },
+    "openapi": "3.0.3",
+    "servers": [
+        {
+            "url": "/rest/api/v1"
+        }
+    ],
+    "components": {
+        "securitySchemes": {
+            "BearerAuth": {
+                "description": "API bearer token in the form `Bearer crw_*`. Token scopes are checked per route.",
+                "in": "header",
+                "name": "Authorization",
+                "type": "apiKey"
+            }
+        },
+        "schemas": {
+            "ItemCreateRequest": {
+                "properties": {
+                    "assignee_id": {
+                        "type": "integer"
+                    },
+                    "custom_fields": {
+                        "additionalProperties": true,
+                        "type": "object"
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "due_date": {
+                        "type": "string"
+                    },
+                    "end_date": {
+                        "type": "string"
+                    },
+                    "is_task": {
+                        "type": "boolean"
+                    },
+                    "item_type_id": {
+                        "type": "integer"
+                    },
+                    "iteration_id": {
+                        "type": "integer"
+                    },
+                    "milestone_ids": {
+                        "items": {
+                            "type": "integer"
+                        },
+                        "type": "array"
+                    },
+                    "parent_id": {
+                        "type": "integer"
+                    },
+                    "priority_id": {
+                        "type": "integer"
+                    },
+                    "project_id": {
+                        "type": "integer"
+                    },
+                    "start_date": {
+                        "type": "string"
+                    },
+                    "status_id": {
+                        "description": "Optional create-time placement. If omitted, the item uses the workflow initial status.\nIf provided, it must be the initial status or directly reachable from the initial status\nwithout workflow conditions, validators, or approval gates.",
+                        "type": "integer"
+                    },
+                    "title": {
+                        "maxLength": 255,
+                        "type": "string"
+                    },
+                    "workspace_id": {
+                        "type": "integer"
+                    }
+                },
+                "required": ["title", "workspace_id"],
+                "type": "object"
+            },
+            "ItemResponse": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer"
+                    },
+                    "key": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "title": {
+                        "type": "string"
+                    },
+                    "workspace_id": {
+                        "type": "integer"
+                    },
+                    "status": {
+                        "type": "object",
+                        "properties": {
+                            "id": {
+                                "type": "integer"
+                            },
+                            "name": {
+                                "type": "string"
+                            },
+                            "category_id": {
+                                "type": "integer"
+                            },
+                            "category_name": {
+                                "type": "string"
+                            },
+                            "is_completed": {
+                                "type": "boolean"
+                            }
+                        }
+                    }
+                }
+            },
+            "PaginationMeta": {
+                "properties": {
+                    "has_more": {
+                        "type": "boolean"
+                    },
+                    "limit": {
+                        "type": "integer"
+                    },
+                    "page": {
+                        "type": "integer"
+                    },
+                    "total": {
+                        "type": "integer"
+                    },
+                    "total_pages": {
+                        "type": "integer"
+                    }
+                },
+                "type": "object"
+            }
+        }
+    },
+    "paths": {
+        "/items": {
+            "post": {
+                "summary": "Create an item",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ItemCreateRequest"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ItemResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/search/items": {
+            "get": {
+                "summary": "Search items",
+                "parameters": [
+                    {
+                        "description": "Full-text search query (auto-detected as CQL when it parses as a filter)",
+                        "in": "query",
+                        "name": "q",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Structured CQL filter, e.g. milestone = '0.8.2' AND status != Done",
+                        "in": "query",
+                        "name": "ql",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "description": "Page number (1-based)",
+                        "in": "query",
+                        "name": "page",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "description": "Items per page (max 100)",
+                        "in": "query",
+                        "name": "limit",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/ItemResponse"
+                                            }
+                                        },
+                                        "pagination": {
+                                            "$ref": "#/components/schemas/PaginationMeta"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

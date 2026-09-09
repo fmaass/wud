@@ -1,6 +1,7 @@
 # Changelog
 
 ## next
+- :star: [WINDSHIFT] - Add trigger creating a windshift work item for minor/major tag updates
 - :fire: [DOCKER-COMPOSE] - Fix trigger fails to detect containers in compose file
 - :wrench: [TELEGRAM] - Replace deprecated client by direct HTTP API use
 
