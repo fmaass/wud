@@ -75,6 +75,8 @@ export interface ContainerUpstream {
     prerelease?: boolean;
     latestVersion?: string | null;
     latestUrl?: string | null;
+    releaseNotes?: string | null;
+    publishedAt?: string | null;
     checkedAt?: string | null;
     error?: string | null;
 }

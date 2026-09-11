@@ -36,6 +36,7 @@ import {
     fullName,
     Container,
     ContainerImage,
+    ContainerUpstream,
 } from '../../../model/container';
 import * as registry from '../../../registry';
 import { getWatchContainerGauge } from '../../../prometheus/watcher';
@@ -194,6 +195,36 @@ function getTagCandidates(
         filteredTags = [];
     }
     return filteredTags;
+}
+
+/**
+ * Build the upstream state of a container from its labels.
+ * The watcher owns the label-derived fields (repo, currentVersion, prerelease). The upstream
+ * checker (app/upstream) owns latestVersion, latestUrl, releaseNotes, publishedAt, checkedAt and
+ * error; they are carried over verbatim from the stored record, because a container in error state
+ * misses the "already in store" fast path and is rebuilt on every watch cycle, which would
+ * otherwise erase the checker's result before it can ever be displayed (INFRA-105).
+ */
+function buildUpstream(
+    upstreamRepo: string | undefined,
+    upstreamVersion: string | undefined,
+    upstreamPrerelease: string | undefined,
+    existingUpstream?: ContainerUpstream,
+): ContainerUpstream | null {
+    if (!upstreamRepo) {
+        return null;
+    }
+    return {
+        repo: upstreamRepo,
+        currentVersion: upstreamVersion || null,
+        prerelease: upstreamPrerelease === 'true',
+        latestVersion: existingUpstream?.latestVersion ?? null,
+        latestUrl: existingUpstream?.latestUrl ?? null,
+        releaseNotes: existingUpstream?.releaseNotes ?? null,
+        publishedAt: existingUpstream?.publishedAt ?? null,
+        checkedAt: existingUpstream?.checkedAt ?? null,
+        error: existingUpstream?.error ?? null,
+    };
 }
 
 function normalizeContainer(container: Container) {
@@ -914,15 +945,11 @@ class Docker extends Watcher {
                 containerInStore.upstream.currentVersion = upstreamVersion || containerInStore.upstream.currentVersion;
                 containerInStore.upstream.prerelease = upstreamPrerelease === 'true';
             } else if (upstreamRepo && !containerInStore.upstream) {
-                containerInStore.upstream = {
-                    repo: upstreamRepo,
-                    currentVersion: upstreamVersion || null,
-                    prerelease: upstreamPrerelease === 'true',
-                    latestVersion: null,
-                    latestUrl: null,
-                    checkedAt: null,
-                    error: null,
-                };
+                containerInStore.upstream = buildUpstream(
+                    upstreamRepo,
+                    upstreamVersion,
+                    upstreamPrerelease,
+                );
             }
             return containerInStore;
         }
@@ -979,18 +1006,14 @@ class Docker extends Watcher {
                 `Image ${parsedImage.path}:${tagName} (container "${containerName}", id ${containerId}) is not a semver and digest watching is disabled so wud won't report any update. Set the label \`wud.watch.digest=true\` on this container to enable digest watching, or set \`wud.watch=false\` to exclude it from being watched.`,
             );
         }
-        // Build upstream object from labels (if repo label is set)
-        const upstream = upstreamRepo
-            ? {
-                  repo: upstreamRepo,
-                  currentVersion: upstreamVersion || null,
-                  prerelease: upstreamPrerelease === 'true',
-                  latestVersion: null,
-                  latestUrl: null,
-                  checkedAt: null,
-                  error: null,
-              }
-            : null;
+        // Build upstream object from labels (if repo label is set), keeping the upstream
+        // checker's own results from the stored record (INFRA-105)
+        const upstream = buildUpstream(
+            upstreamRepo,
+            upstreamVersion,
+            upstreamPrerelease,
+            containerInStore?.upstream,
+        );
 
         const isLocalImage = !parsedImage.domain && !repoDigest;
         const registryUrl = isLocalImage ? 'local' : parsedImage.domain;

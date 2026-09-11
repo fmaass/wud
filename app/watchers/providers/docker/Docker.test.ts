@@ -1277,6 +1277,178 @@ describe('Docker Watcher', () => {
             // catch is NOT masking a Bug B failure for the local image
             expect(mockLogWarn).not.toHaveBeenCalled();
         });
+        // INFRA-105: the watcher must not clobber the upstream checker's result.
+        // An errored container (e.g. a locally built fork whose registry lookup 401s)
+        // misses the "already in store" fast path and is rebuilt from labels every cycle.
+        test('should preserve upstream check results when rebuilding an errored container', async () => {
+            await docker.register('watcher', 'docker', 'test', {});
+            docker.log = {
+                warn: jest.fn(),
+                debug: jest.fn(),
+                info: jest.fn(),
+                child: jest.fn().mockReturnValue({
+                    warn: jest.fn(),
+                    debug: jest.fn(),
+                    info: jest.fn(),
+                }),
+            };
+
+            // Already in the store, but in error state => no fast path, full rebuild
+            storeContainer.getContainer.mockReturnValue({
+                id: '123',
+                name: 'wud',
+                error: { message: 'Request failed with status code 401' },
+                upstream: {
+                    repo: 'getwud/wud',
+                    currentVersion: '8.3.0',
+                    prerelease: false,
+                    latestVersion: '8.4.0',
+                    latestUrl:
+                        'https://github.com/getwud/wud/releases/tag/8.4.0',
+                    releaseNotes: 'Release notes',
+                    publishedAt: '2026-09-01T00:00:00.000Z',
+                    checkedAt: '2026-09-11T00:00:00.000Z',
+                    error: null,
+                },
+            });
+
+            const container = {
+                Id: '123',
+                Image: 'wud-custom:8.3.0-fms.2',
+                Names: ['/wud'],
+                State: 'running',
+                Labels: {
+                    'wud.upstream.repo': 'getwud/wud',
+                    'wud.upstream.version': '8.3.0',
+                },
+            };
+            mockImage.inspect.mockResolvedValue({
+                Id: 'image123',
+                Architecture: 'amd64',
+                Os: 'linux',
+                Created: '2026-01-01T00:00:00.000Z',
+                RepoDigests: ['wud-custom@sha256:ab2c8dba'],
+            });
+            mockTag.parse.mockReturnValue({ major: 8, minor: 3, patch: 0 });
+            mockParse.mockReturnValue({
+                domain: '',
+                path: 'wud-custom',
+                tag: '8.3.0-fms.2',
+            });
+            const mockRegistry = {
+                normalizeImage: jest.fn((img) => img),
+                getId: () => 'hub',
+                match: () => true,
+            };
+            registry.getState.mockReturnValue({
+                registry: { hub: mockRegistry },
+            });
+            const {
+                validate: validateContainer,
+            } = require('../../../model/container');
+            validateContainer.mockImplementation((c) => c);
+
+            await docker.addImageDetailsToContainer(
+                container,
+                undefined,
+                undefined,
+                undefined,
+                undefined,
+                undefined,
+                undefined,
+                undefined,
+                undefined,
+                'getwud/wud',
+                '8.3.0',
+                undefined,
+            );
+
+            expect(validateContainer).toHaveBeenCalled();
+            const rebuilt = validateContainer.mock.calls[0][0];
+            // Checker-owned fields survive the rebuild
+            expect(rebuilt.upstream.checkedAt).toBe('2026-09-11T00:00:00.000Z');
+            expect(rebuilt.upstream.latestVersion).toBe('8.4.0');
+            expect(rebuilt.upstream.latestUrl).toBe(
+                'https://github.com/getwud/wud/releases/tag/8.4.0',
+            );
+            expect(rebuilt.upstream.releaseNotes).toBe('Release notes');
+            expect(rebuilt.upstream.publishedAt).toBe(
+                '2026-09-01T00:00:00.000Z',
+            );
+            expect(rebuilt.upstream.error).toBeNull();
+            // Watcher-owned (label-derived) fields are re-read from the labels
+            expect(rebuilt.upstream.repo).toBe('getwud/wud');
+            expect(rebuilt.upstream.currentVersion).toBe('8.3.0');
+            expect(rebuilt.upstream.prerelease).toBe(false);
+        });
+
+        test('should start upstream fields null for a first-seen container', async () => {
+            await docker.register('watcher', 'docker', 'test', {});
+            docker.log = {
+                warn: jest.fn(),
+                debug: jest.fn(),
+                info: jest.fn(),
+                child: jest.fn().mockReturnValue({
+                    warn: jest.fn(),
+                    debug: jest.fn(),
+                    info: jest.fn(),
+                }),
+            };
+
+            // Never seen before
+            storeContainer.getContainer.mockReturnValue(undefined);
+
+            const container = {
+                Id: '456',
+                Image: 'wud-custom:8.3.0-fms.2',
+                Names: ['/wud'],
+                State: 'running',
+                Labels: {
+                    'wud.upstream.repo': 'getwud/wud',
+                    'wud.upstream.version': '8.3.0',
+                },
+            };
+            mockImage.inspect.mockResolvedValue({
+                Id: 'image123',
+                Architecture: 'amd64',
+                Os: 'linux',
+                Created: '2026-01-01T00:00:00.000Z',
+                RepoDigests: [],
+            });
+            mockTag.parse.mockReturnValue({ major: 8, minor: 3, patch: 0 });
+            mockParse.mockReturnValue({
+                domain: '',
+                path: 'wud-custom',
+                tag: '8.3.0-fms.2',
+            });
+            const {
+                validate: validateContainer,
+            } = require('../../../model/container');
+            validateContainer.mockImplementation((c) => c);
+
+            await docker.addImageDetailsToContainer(
+                container,
+                undefined,
+                undefined,
+                undefined,
+                undefined,
+                undefined,
+                undefined,
+                undefined,
+                undefined,
+                'getwud/wud',
+                '8.3.0',
+                undefined,
+            );
+
+            const built = validateContainer.mock.calls[0][0];
+            expect(built.upstream.repo).toBe('getwud/wud');
+            expect(built.upstream.currentVersion).toBe('8.3.0');
+            expect(built.upstream.latestVersion).toBeNull();
+            expect(built.upstream.latestUrl).toBeNull();
+            expect(built.upstream.checkedAt).toBeNull();
+            expect(built.upstream.error).toBeNull();
+        });
 
         test('should skip remote version check for local images', async () => {
             const container = {
